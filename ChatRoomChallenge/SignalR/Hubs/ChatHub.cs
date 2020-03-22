@@ -19,9 +19,10 @@ namespace ChatRoomChallenge.SignalR.Hubs
         private ILogger<ChatHub> _logger;
         private UserManager<IdentityUser> _userManager;
         private ChatMessagesService _chatMessagesService;
-        //private ApplicationDbContext _applicationDbContext;
 
-        public ChatHub(ILogger<ChatHub> logger, UserManager<IdentityUser> userManager, ChatMessagesService chatMessagesService)
+        public ChatHub(ILogger<ChatHub> logger,
+            UserManager<IdentityUser> userManager,
+            ChatMessagesService chatMessagesService)
         {
             _logger = logger;
             _userManager = userManager;
@@ -32,7 +33,6 @@ namespace ChatRoomChallenge.SignalR.Hubs
         {
             await base.OnConnectedAsync();
 
-            /*await Clients.Client(Context.ConnectionId)*/
             var msgs = from msg in _chatMessagesService.FetchLastMessages()
                        select new { user = msg.User.Email, message = msg.Message };
             await Clients.Caller.SendAsync(SignalRMethods.ReceiveMessages, msgs);
@@ -42,42 +42,30 @@ namespace ChatRoomChallenge.SignalR.Hubs
         {
             try
             {
-                bool isAuthenticated = Context?.User?.Identity?.IsAuthenticated ?? false;
-
-                if (isAuthenticated)
+                var user = await _userManager.GetUserAsync(Context.User);
+                var chatMessage = new ChatMessage()
                 {
-                    //asynchronous to provide maximum scalability
-                    var user = await _userManager.GetUserAsync(Context.User);
-                    var chatMessage = new ChatMessage()
-                    {
-                        IsCommand = _chatMessagesService.IsCommand(message),
-                        Message = message,
-                        TimeStamp = DateTime.Now,
-                        User = user
-                    };
+                    IsCommand = _chatMessagesService.IsCommand(message),
+                    Message = message,
+                    TimeStamp = DateTime.Now,
+                    User = user
+                };
 
-                    _logger.LogInformation($"Message recived: user:{user.Email}, message:{message}");
+                _logger.LogInformation($"Message recived: user:{user.Email}, message:{message}");
 
-                    //Validate if this message is not a command and save it in db
-                    if (!chatMessage.IsCommand)
-                    {
-                        _chatMessagesService.SaveChatMessage(chatMessage);
+                await Clients.All.SendAsync(SignalRMethods.ReceiveMessage, user.Email, message);
 
-                        //asynchronous to provide maximum scalability
-                        await Clients.All.SendAsync(SignalRMethods.ReceiveMessage, user.Email, message);
-                    }
-                    else
-                    {
-                        await Clients.All.SendAsync(SignalRMethods.ReceiveMessage, user.Email, message);
-
-                        //With the message broker, there is a method that sends the response to the chat
-                        string commandResponse = _chatMessagesService.ExecuteCommand(message);
-                        await Clients.All.SendAsync(SignalRMethods.ReceiveMessage, "StockBot", commandResponse);
-                    }
+                //if this message is not a command save it in db
+                if (!chatMessage.IsCommand)
+                {
+                    _chatMessagesService.SaveChatMessage(chatMessage);
                 }
                 else
                 {
-                    _logger.LogInformation($"Unauthorize message recived: message:{message}");
+                    //With the message broker
+                    var status = await _chatMessagesService.ExecuteCommand(message);
+                    if (status != Status.ExecutingCommand)
+                        await Clients.All.SendAsync(SignalRMethods.ReceiveMessage, "Bot", status);
                 }
             }
             catch (Exception e)

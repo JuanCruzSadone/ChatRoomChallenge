@@ -1,4 +1,6 @@
-﻿using ChatRoomChallenge.Data;
+﻿using ChatRoomChallenge.Commands;
+using ChatRoomChallenge.Common.Constants;
+using ChatRoomChallenge.Data;
 using ChatRoomChallenge.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace ChatRoomChallenge.Services
@@ -15,6 +18,7 @@ namespace ChatRoomChallenge.Services
     {
         private ILogger<ChatMessagesService> _logger;
         private ApplicationDbContext _applicationDbContext;
+        private readonly Regex commandRegex = new Regex(@"\/((\S)+)=((\S)*)");
 
         public ChatMessagesService(ILogger<ChatMessagesService> logger, ApplicationDbContext applicationDbContext)
         {
@@ -44,7 +48,7 @@ namespace ChatRoomChallenge.Services
             {
                 return _applicationDbContext.ChatMessages
                     .Include(msg => msg.User)
-                    .OrderByDescending(x => x.TimeStamp).Take(count).ToList();
+                    .OrderByDescending(msg => msg.TimeStamp).Take(count).ToList();
             }
             catch (Exception e)
             {
@@ -57,12 +61,12 @@ namespace ChatRoomChallenge.Services
         {
             try
             {
-                string[] commands = { "/stock=" };
-
-                foreach (string cmd in commands)
+                Match match = commandRegex.Match(message);
+                if (match.Success)
                 {
-                    if (message.Contains(cmd)) return true;
+                    return true;
                 }
+
                 return false;
             }
             catch (Exception e)
@@ -72,16 +76,32 @@ namespace ChatRoomChallenge.Services
             }
         }
 
-        public string ExecuteCommand(string command)
+        public async Task<string> ExecuteCommand(string fullCommand)
         {
             try
             {
-                return "null";
+                Match match = commandRegex.Match(fullCommand);
+
+                if (!match.Success || match.Groups.Count < 2) return $"Sorry I couldn't understand the command { fullCommand}";
+
+                string command = match.Groups[1].Value;
+                string data = match.Groups[3].Value;
+
+                switch (command)
+                {
+                    case StockCommandHandler.Command:
+                        await new StockCommandHandler().HandleAsync(data);
+                        return Status.ExecutingCommand;
+
+                    default:
+                        _logger.LogInformation($"Command {fullCommand} not found");
+                        return $"Sorry I couldn't understand the command {fullCommand}";
+                }
             }
             catch (Exception e)
             {
-                _logger.LogError(e, $"Error executing command:{command}");
-                return $"Error executing command:{command}. " + e.Message;
+                _logger.LogError(e, $"Error executing command:{fullCommand}");
+                return $"Sorry I couldn't understand the command {fullCommand}";
             }
         }
     }
