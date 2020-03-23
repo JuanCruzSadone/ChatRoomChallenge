@@ -22,6 +22,3 @@ PM> Update-Database
 /stock={stock_name}
 ```
 
-
-## License
-[MIT](https://choosealicense.com/licenses/mit/)
