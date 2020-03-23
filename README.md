@@ -1,22 +1,25 @@
 # ChatRoomChallenge
 
-Es un chat que permite ejecutar 
+Simple browser-based chat application using .NET core 3.1.
+
+This application allows several users to talk in a chatroom and also to get stock quotes
+from an API using a specific command.
 
 ## Installation
 
-Crear migración
+Create Migration
 
 ```bash
 PM> add-migration MigracionInicial
 ```
 
-Correr migracion
+Run Migration
 
 ```bash
 PM> Update-Database
 ```
 
-## Comandos soportados
+## Supported Commands
 
 ```
 /stock={stock_name}
