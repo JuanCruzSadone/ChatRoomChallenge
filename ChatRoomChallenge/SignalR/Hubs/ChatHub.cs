@@ -63,9 +63,8 @@ namespace ChatRoomChallenge.SignalR.Hubs
                 else
                 {
                     //With the message broker
-                    var status = await _chatMessagesService.ExecuteCommand(message);
-                    if (status != Status.ExecutingCommand)
-                        await Clients.All.SendAsync(SignalRMethods.ReceiveMessage, "Bot", status);
+                    var (resp, success) = await _chatMessagesService.ExecuteCommand(message);
+                    await Clients.All.SendAsync(SignalRMethods.ReceiveMessage, "Bot", resp);
                 }
             }
             catch (Exception e)

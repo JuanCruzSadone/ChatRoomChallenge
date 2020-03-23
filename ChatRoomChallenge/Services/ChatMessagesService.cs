@@ -48,7 +48,7 @@ namespace ChatRoomChallenge.Services
             {
                 return _applicationDbContext.ChatMessages
                     .Include(msg => msg.User)
-                    .OrderByDescending(msg => msg.TimeStamp).Take(count).ToList();
+                    .OrderBy(msg => msg.TimeStamp).Take(count).ToList();
             }
             catch (Exception e)
             {
@@ -76,13 +76,13 @@ namespace ChatRoomChallenge.Services
             }
         }
 
-        public async Task<string> ExecuteCommand(string fullCommand)
+        public async Task<(string, bool)> ExecuteCommand(string fullCommand)
         {
             try
             {
                 Match match = commandRegex.Match(fullCommand);
 
-                if (!match.Success || match.Groups.Count < 2) return $"Sorry I couldn't understand the command { fullCommand}";
+                if (!match.Success || match.Groups.Count < 2) return ($"Sorry I couldn't understand the command { fullCommand}", false);
 
                 string command = match.Groups[1].Value;
                 string data = match.Groups[3].Value;
@@ -90,18 +90,20 @@ namespace ChatRoomChallenge.Services
                 switch (command)
                 {
                     case StockCommandHandler.Command:
-                        await new StockCommandHandler().HandleAsync(data);
-                        return Status.ExecutingCommand;
+                        var (resp, success) = await new StockCommandHandler().HandleAsync(data);
+                        if (!success)
+                            return ($"Sorry I couldn't fetch the stock for {data}", false);
+                        return (resp, success);
 
                     default:
                         _logger.LogInformation($"Command {fullCommand} not found");
-                        return $"Sorry I couldn't understand the command {fullCommand}";
+                        return ($"Sorry I couldn't understand the command {fullCommand}", false);
                 }
             }
             catch (Exception e)
             {
                 _logger.LogError(e, $"Error executing command:{fullCommand}");
-                return $"Sorry I couldn't understand the command {fullCommand}";
+                return ($"Sorry I couldn't understand the command {fullCommand}", false);
             }
         }
     }

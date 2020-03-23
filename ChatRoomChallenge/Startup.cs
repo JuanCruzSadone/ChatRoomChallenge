@@ -14,7 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ChatRoomChallenge.SignalR.Hubs;
 using ChatRoomChallenge.Services;
-using ChatRoomChallenge.BackgroundServices;
+using ChatRoomChallenge.ApiClients;
 
 namespace ChatRoomChallenge
 {
@@ -38,7 +38,6 @@ namespace ChatRoomChallenge
             services.AddRazorPages();
             services.AddSignalR();
             services.AddChatMessagesService();
-            services.AddHostedService<ExecuteStockCommand>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
